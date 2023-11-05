@@ -421,7 +421,7 @@ impl VisData {
 }
 
 pub struct Packfile {
-    zip: Mutex<ZipArchive<Cursor<Vec<u8>>>>,
+    pub zip: Mutex<ZipArchive<Cursor<Vec<u8>>>>,
 }
 
 impl Clone for Packfile {
