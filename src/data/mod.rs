@@ -11,7 +11,8 @@ use crate::bspfile::LumpType;
 use crate::{BspResult, StringError};
 use arrayvec::ArrayString;
 use binrw::error::CustomError;
-use binrw::{BinRead, BinResult, ReadOptions};
+use binrw::Endian;
+use binrw::{BinRead, BinResult};
 use bitflags::bitflags;
 use bv::BitVec;
 use num_enum::TryFromPrimitive;
@@ -30,7 +31,7 @@ use zip::ZipArchive;
 #[cfg(test)]
 fn test_read_bytes<T: BinRead>()
 where
-    T::Args: Default,
+    for<'a> T::Args<'a>: Default,
 {
     use binrw::BinReaderExt;
     use std::any::type_name;
@@ -129,18 +130,18 @@ impl<const LEN: usize> Display for FixedString<LEN> {
 }
 
 impl<const LEN: usize> BinRead for FixedString<LEN> {
-    type Args = ();
+    type Args<'a> = ();
 
     fn read_options<R: Read + binrw::io::Seek>(
         reader: &mut R,
-        options: &ReadOptions,
-        args: Self::Args,
+        endian: Endian,
+        args: Self::Args<'_>,
     ) -> BinResult<Self> {
         use std::str;
 
         let start = reader.stream_position().unwrap();
 
-        let name_buf = <[u8; LEN]>::read_options(reader, options, args)?;
+        let name_buf = <[u8; LEN]>::read_options(reader, endian, args)?;
 
         let zero_pos =
             name_buf
@@ -272,7 +273,7 @@ impl Brush {
 bitflags! {
     #[derive(BinRead)]
     pub struct BrushFlags: u32 {
-        const EMPTY =       	        0; // 	No contents
+        // const EMPTY =       	        0; // 	No contents
         const SOLID =       	        0x1; // 	an eye is never valid in a solid
         const WINDOW =      	        0x2; // 	translucent, but not watery (glass)
         const AUX =         	        0x4;
@@ -481,8 +482,8 @@ impl Packfile {
 
 fn try_read_enum<Enum, Reader, Error, ErrorFn>(
     reader: &mut Reader,
-    options: &ReadOptions,
-    args: <<Enum as TryFromPrimitive>::Primitive as BinRead>::Args,
+    endian: Endian,
+    args: <<Enum as TryFromPrimitive>::Primitive as BinRead>::Args<'_>,
     err_map: ErrorFn,
 ) -> BinResult<Enum>
 where
@@ -493,7 +494,7 @@ where
     Error: CustomError + 'static,
 {
     let start = reader.stream_position().unwrap();
-    let raw = <Enum::Primitive>::read_options(reader, options, args)?;
+    let raw = <Enum::Primitive>::read_options(reader, endian, args)?;
 
     Enum::try_from_primitive(raw)
         .map_err(|e| err_map(e.number))

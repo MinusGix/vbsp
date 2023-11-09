@@ -1,6 +1,6 @@
 use crate::error::UnsupportedLumpVersion;
 use crate::{lzma_decompress_with_header, BspError, FixedString, Vector};
-use binrw::{BinRead, BinReaderExt, BinResult, ReadOptions};
+use binrw::{BinRead, BinReaderExt, BinResult, Endian};
 use bitflags::bitflags;
 use cgmath::{Deg, Quaternion, Rotation3};
 use std::borrow::Cow;
@@ -15,7 +15,10 @@ pub struct GameLumpHeader {
 }
 
 impl GameLumpHeader {
-    pub fn find<T: GameLumpType<Args = (u16,)>>(&self, data: &[u8]) -> Option<Result<T, BspError>> {
+    pub fn find<T: GameLumpType<Args<'static> = (u16,)>>(
+        &self,
+        data: &[u8],
+    ) -> Option<Result<T, BspError>> {
         let (i, lump) = self
             .lumps
             .iter()
@@ -143,18 +146,16 @@ impl StaticPropLump {
 }
 
 impl BinRead for StaticPropLump {
-    type Args = (u16,);
+    type Args<'a> = (u16,);
 
     fn read_options<R: Read + Seek>(
         reader: &mut R,
-        options: &ReadOptions,
-        args: Self::Args,
+        endian: Endian,
+        args: Self::Args<'_>,
     ) -> BinResult<Self> {
         match args.0 {
-            6 => StaticPropLumpV6::read_options(reader, options, ()).map(StaticPropLump::from),
-            7 | 10 => {
-                StaticPropLumpV10::read_options(reader, options, ()).map(StaticPropLump::from)
-            }
+            6 => StaticPropLumpV6::read_options(reader, endian, ()).map(StaticPropLump::from),
+            7 | 10 => StaticPropLumpV10::read_options(reader, endian, ()).map(StaticPropLump::from),
             version => Err(binrw::Error::Custom {
                 err: Box::new(UnsupportedLumpVersion {
                     lump_type: "static props",
