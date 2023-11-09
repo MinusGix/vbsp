@@ -11,13 +11,13 @@ mod benches {
     #[bench]
     fn from_bytes(b: &mut Bencher) {
         b.iter(|| {
-            Bsp::read(&MAP_BYTES).unwrap();
+            Bsp::read(MAP_BYTES).unwrap();
         });
     }
 
     #[bench]
     fn leaf_at(b: &mut Bencher) {
-        let bsp = Bsp::read(&MAP_BYTES).unwrap();
+        let bsp = Bsp::read(MAP_BYTES).unwrap();
 
         b.iter(|| {
             test::black_box(bsp.leaf_at(test::black_box(Vector {
