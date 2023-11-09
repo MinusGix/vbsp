@@ -471,6 +471,12 @@ impl Packfile {
         entry.read_exact(&mut buff)?;
         Ok(Some(buff))
     }
+
+    pub fn contains(&self, name: &str) -> BspResult<bool> {
+        let mut zip = self.zip.lock().unwrap();
+        let contains = zip.by_name(name).is_ok();
+        Ok(contains)
+    }
 }
 
 fn try_read_enum<Enum, Reader, Error, ErrorFn>(
