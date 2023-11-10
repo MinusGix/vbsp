@@ -8,6 +8,7 @@ pub use self::entity::*;
 pub use self::game::*;
 pub use self::vector::*;
 use crate::bspfile::LumpType;
+use crate::Handle;
 use crate::{BspResult, StringError};
 use arrayvec::ArrayString;
 use binrw::error::CustomError;
@@ -195,6 +196,27 @@ pub struct Plane {
     pub normal: Vector,
     pub dist: f32,
     pub ty: i32,
+}
+
+#[derive(Debug, Clone)]
+pub enum NodeOrLeaf<'a> {
+    Node(Handle<'a, Node>),
+    Leaf(Handle<'a, Leaf>),
+}
+impl<'a> NodeOrLeaf<'a> {
+    pub fn as_node(&self) -> Option<Handle<'a, Node>> {
+        match self {
+            NodeOrLeaf::Node(node) => Some(node.clone()),
+            NodeOrLeaf::Leaf(_) => None,
+        }
+    }
+
+    pub fn as_leaf(&self) -> Option<Handle<'a, Leaf>> {
+        match self {
+            NodeOrLeaf::Node(_) => None,
+            NodeOrLeaf::Leaf(leaf) => Some(leaf.clone()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, BinRead)]

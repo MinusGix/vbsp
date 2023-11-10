@@ -80,6 +80,22 @@ impl Handle<'_, Node> {
     pub fn plane(&self) -> Handle<'_, Plane> {
         self.bsp.plane(self.plane_index as _).unwrap()
     }
+
+    pub fn children(&self) -> [Option<NodeOrLeaf<'_>>; 2] {
+        let [idx_0, idx_1] = self.children;
+        [node_leaf(self.bsp, idx_0), node_leaf(self.bsp, idx_1)]
+    }
+}
+
+fn node_leaf(bsp: &Bsp, idx: i32) -> Option<NodeOrLeaf<'_>> {
+    if idx < 0 {
+        let leaf_idx = -(idx + 1);
+        let leaf = bsp.leaf(leaf_idx as usize)?;
+        Some(NodeOrLeaf::Leaf(leaf))
+    } else {
+        let node = bsp.node(idx as usize)?;
+        Some(NodeOrLeaf::Node(node))
+    }
 }
 
 impl<'a> Handle<'a, Leaf> {
