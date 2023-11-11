@@ -413,28 +413,35 @@ pub struct VisData {
 
 impl VisData {
     pub fn visible_clusters(&self, cluster: i16) -> BitVec<u8> {
-        let offset = self.pvs_offsets[cluster as usize] as usize;
-        let pvs_buffer = &self.data[offset..];
-        let mut visible_clusters = BitVec::with_capacity(min(self.cluster_count as u64, 1024));
+        let offset = if let Some(offset) = self.pvs_offsets.get(cluster as usize) {
+            *offset as usize
+        } else {
+            return BitVec::new();
+        };
+
+        let mut visible_clusters = BitVec::with_capacity(self.cluster_count as u64);
         visible_clusters.resize(self.cluster_count as u64, false);
 
         let mut cluster_index = 0;
-        let mut buffer_index = 0;
+        let mut buffer_index = offset;
 
         while cluster_index < self.cluster_count {
-            if pvs_buffer[buffer_index] == 0 {
-                let skip = pvs_buffer[buffer_index + 1];
-                cluster_index += skip as u32;
-                buffer_index += 2;
+            if self.data[buffer_index] == 0 {
+                buffer_index += 1;
+                cluster_index += (self.data[buffer_index] as u32) << 3;
+                buffer_index += 1;
+                continue;
             } else {
-                let packed = pvs_buffer[buffer_index];
                 for i in 0..8 {
-                    let bit = 1 << i;
-                    if (packed & bit) == bit {
-                        visible_clusters.set(cluster_index as u64, true);
+                    if self.cluster_count <= cluster_index + i {
+                        break;
                     }
-                    cluster_index += 1;
+
+                    if (self.data[buffer_index] & (1 << i)) != 0 {
+                        visible_clusters.set(cluster_index as u64 + i as u64, true);
+                    }
                 }
+                cluster_index += 8;
                 buffer_index += 1;
             }
         }
