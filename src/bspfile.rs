@@ -89,9 +89,16 @@ pub enum LumpType {
     BrushSides,
     Areas,
     AreaPortals,
+    // Lump Portals sometimes?
     Unused0,
+    // Lump clusters sometimes?
+    // Lump prop hulls sometimes?
     Unused1,
+    // Lump portal verts sometimes?
+    // Lump prop hull verts sometimes?
     Unused2,
+    // Lump cluster portals sometimes?
+    // Lump prop tris sometimes?
     Unused3,
     DisplacementInfo,
     OriginalFaces,
