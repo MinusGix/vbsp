@@ -134,6 +134,19 @@ impl<'a> Handle<'a, Leaf> {
             .iter()
             .filter_map(move |leaf_face| bsp.face(leaf_face.face as usize))
     }
+
+    /// Get all faces in this leaf, and the index they are at in `bsp`'s `faces` array
+    pub fn faces_enumerate(&self) -> impl Iterator<Item = (usize, Handle<'a, Face>)> {
+        let start = self.first_leaf_face as usize;
+        let end = start + self.leaf_face_count as usize;
+        let bsp = self.bsp;
+        bsp.leaf_faces[start..end]
+            .iter()
+            .filter_map(move |leaf_face| {
+                bsp.face(leaf_face.face as usize)
+                    .map(|face| (leaf_face.face as usize, face))
+            })
+    }
 }
 
 impl<'a> Handle<'a, TextureInfo> {
