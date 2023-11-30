@@ -3,7 +3,7 @@ use crate::data::*;
 
 impl<'a> Handle<'a, Face> {
     /// Get the texture of the face
-    pub fn texture(&self) -> Handle<TextureInfo> {
+    pub fn texture(&self) -> Handle<'a, TextureInfo> {
         self.bsp
             .textures_info
             .get(self.texture_info as usize)
