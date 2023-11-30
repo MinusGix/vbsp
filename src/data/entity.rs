@@ -247,6 +247,8 @@ pub enum Entity<'a> {
     Unknown(RawEntity<'a>),
 }
 
+// TODO: have parsing mode which warns when we skip over fields in an entity!
+
 #[derive(Debug, Clone, Entity)]
 pub struct Light {
     pub origin: Vector,
@@ -488,7 +490,8 @@ pub struct LogicAuto<'a> {
 #[derive(Debug, Clone, Entity)]
 pub struct DustMotes<'a> {
     pub model: &'a str,
-    pub origin: Vector,
+    #[entity(default)]
+    pub origin: Option<Vector>,
     #[entity(name = "StartDisabled", default)]
     pub start_disabled: bool,
     #[entity(name = "Color")]
@@ -622,16 +625,16 @@ pub struct RopeKeyFrame<'a> {
     pub target_name: Option<&'a str>,
     #[entity(name = "RopeMaterial")]
     pub material: &'a str,
-    #[entity(name = "Dangling")]
-    pub dangling: bool,
-    #[entity(name = "Barbed")]
-    pub barbed: bool,
-    #[entity(name = "Breakable")]
-    pub breakable: bool,
+    #[entity(name = "Dangling", default)]
+    pub dangling: Option<bool>,
+    #[entity(name = "Barbed", default)]
+    pub barbed: Option<bool>,
+    #[entity(name = "Breakable", default)]
+    pub breakable: Option<bool>,
     #[entity(name = "TextureScale")]
     pub texture_scale: f32,
-    #[entity(name = "Collide")]
-    pub collide: bool,
+    #[entity(name = "Collide", default)]
+    pub collide: Option<bool>,
     #[entity(name = "Width")]
     pub width: f32,
     #[entity(name = "Slack")]
@@ -653,18 +656,18 @@ pub struct RopeMove<'a> {
     pub slack: f32,
     #[entity(name = "Width")]
     pub width: f32,
-    #[entity(name = "Dangling")]
-    pub dangling: bool,
-    #[entity(name = "Barbed")]
-    pub barbed: bool,
-    #[entity(name = "Breakable")]
-    pub breakable: bool,
+    #[entity(name = "Dangling", default)]
+    pub dangling: Option<bool>,
+    #[entity(name = "Barbed", default)]
+    pub barbed: Option<bool>,
+    #[entity(name = "Breakable", default)]
+    pub breakable: Option<bool>,
     #[entity(name = "PositionInterpolator")]
     pub interpolator: u8,
     #[entity(name = "MoveSpeed")]
     pub move_speed: f32,
-    #[entity(name = "Type")]
-    pub ty: u8,
+    #[entity(name = "Type", default)]
+    pub ty: Option<u8>,
     #[entity(name = "NextKey")]
     pub next_key: &'a str,
     #[entity(name = "Subdiv")]
