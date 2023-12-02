@@ -7,6 +7,7 @@ pub struct BspFile<'a> {
     data: &'a [u8],
     directories: Directories,
     header: Header,
+    #[allow(dead_code)]
     map_revision: u32,
 }
 

@@ -19,11 +19,10 @@ use bitflags::bitflags;
 use bv::BitVec;
 use num_enum::TryFromPrimitive;
 use std::borrow::Cow;
-use std::cmp::min;
 use std::fmt;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::{Cursor, Read, Seek};
-use std::mem::{align_of, size_of};
+use std::mem::size_of;
 use std::ops::Index;
 use std::sync::Mutex;
 use zip::result::ZipError;
@@ -264,8 +263,8 @@ impl BinRead for Leaf {
 
     fn read_options<R: Read + Seek>(
         reader: &mut R,
-        endian: Endian,
-        version: Version,
+        _endian: Endian,
+        _version: Version,
     ) -> BinResult<Self> {
         let contents = i32::read_le(reader)?;
         let cluster = i16::read_le(reader)?;
