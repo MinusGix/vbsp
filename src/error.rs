@@ -132,4 +132,6 @@ pub enum EntityParseError {
     Float(#[from] ParseFloatError),
     #[error(transparent)]
     Int(#[from] ParseIntError),
+    #[error("invalid enum value: {0}")]
+    InvalidEnumValue(&'static str),
 }

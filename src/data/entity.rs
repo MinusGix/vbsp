@@ -1,5 +1,6 @@
 use crate::error::EntityParseError;
 use crate::Vector;
+use binrw::BinRead;
 use std::fmt;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -172,7 +173,7 @@ pub enum Entity<'a> {
     #[entity(name = "light")]
     Light(Light),
     #[entity(name = "light_spot")]
-    LightSpot(LightSpot),
+    LightSpot(LightSpot<'a>),
     #[entity(name = "prop_dynamic")]
     PropDynamic(PropDynamic<'a>),
     #[entity(name = "prop_dynamic_override")]
@@ -256,24 +257,159 @@ pub struct Light {
     pub light: [u32; 4],
 }
 
+#[derive(Debug, Clone, Copy, BinRead)]
+#[br(repr(u8))]
+pub enum RenderMode {
+    Normal = 0,
+    Color = 1,
+    Texture = 2,
+    Glow = 3,
+    Solid = 4,
+    Additive = 5,
+    Unknown = 6,
+    AdditiveFractional = 7,
+    AlphaAdd = 8,
+    WorldSpaceGlow = 9,
+    SkipRender = 10,
+}
+impl EntityProp<'_> for RenderMode {
+    fn parse(raw: &str) -> Result<Self, EntityParseError> {
+        let val = u8::parse(raw)?;
+        Ok(match val {
+            0 => RenderMode::Normal,
+            1 => RenderMode::Color,
+            2 => RenderMode::Texture,
+            3 => RenderMode::Glow,
+            4 => RenderMode::Solid,
+            5 => RenderMode::Additive,
+            6 => RenderMode::Unknown,
+            7 => RenderMode::AdditiveFractional,
+            8 => RenderMode::AlphaAdd,
+            9 => RenderMode::WorldSpaceGlow,
+            10 => RenderMode::SkipRender,
+            _ => return Err(EntityParseError::InvalidEnumValue("RenderMode")),
+        })
+    }
+}
+
 #[derive(Debug, Clone, Entity)]
 pub struct SpotLight {
     pub origin: Vector,
     pub angles: [f32; 3],
     #[entity(name = "rendercolor")]
     pub color: [u8; 3],
+    /// Width of the spotlight
     #[entity(name = "spotlightwidth")]
-    pub cone: u8,
+    pub cone: u32,
+    /// Length of the spotlight
+    #[entity(name = "spotlightlength")]
+    pub length: u32,
+    /// Whether the entity should have shadows on itself
+    #[entity(name = "disablereceiveshadows", default)]
+    pub disable_receive_shadows: Option<bool>,
+    // maybe defaults to 0?
+    #[entity(name = "renderfx", default)]
+    pub render_fx: Option<u8>,
+    // probably defaults to 'Normal'
+    #[entity(name = "rendermode", default)]
+    pub render_mode: Option<RenderMode>,
+}
+
+#[derive(Debug, Default, Clone, Copy, BinRead)]
+#[br(repr(u8))]
+pub enum LightSpotStyle {
+    #[default]
+    /// `m` (solid light)
+    Normal = 0,
+    /// `mmamammmmammamamaaamammma`
+    FlourescentFlicker = 10,
+    /// `abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba`
+    SlowStrongPulse = 2,
+    /// `abcdefghijklmnopqrrqponmlkjihgfedcba`
+    SlowPulseNoBlack = 11,
+    /// `jklmnopqrstuvwxyzyxwvutsrqponmlkj`
+    GentlePulse = 5,
+    /// `mmnmmommommnonmmonqnmmo`
+    FlickerA = 1,
+    /// `nmonqnmomnmomomno`
+    FlickerB = 6,
+    /// `mmmmmaaaaammmmmaaaaaabcdefgabcdefg`
+    CandleA = 3,
+    /// `mmmaaaabcdefgmmmmaaaammmaamm`
+    CandleB = 7,
+    /// `mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa`
+    CandleC = 8,
+    /// `mamamamamama`
+    FastStrobe = 4,
+    /// `aaaaaaaazzzzzzzz`
+    SlowStrobe = 9,
+    /// `mmnnmmnnnmmnn`
+    UnderwaterLightMutation = 12,
+}
+impl EntityProp<'_> for LightSpotStyle {
+    fn parse(raw: &str) -> Result<Self, EntityParseError> {
+        let val = u8::parse(raw)?;
+        Ok(match val {
+            0 => LightSpotStyle::Normal,
+            10 => LightSpotStyle::FlourescentFlicker,
+            2 => LightSpotStyle::SlowStrongPulse,
+            11 => LightSpotStyle::SlowPulseNoBlack,
+            5 => LightSpotStyle::GentlePulse,
+            1 => LightSpotStyle::FlickerA,
+            6 => LightSpotStyle::FlickerB,
+            3 => LightSpotStyle::CandleA,
+            7 => LightSpotStyle::CandleB,
+            8 => LightSpotStyle::CandleC,
+            4 => LightSpotStyle::FastStrobe,
+            9 => LightSpotStyle::SlowStrobe,
+            12 => LightSpotStyle::UnderwaterLightMutation,
+            _ => return Err(EntityParseError::InvalidEnumValue("LightSpotStyle")),
+        })
+    }
 }
 
 #[derive(Debug, Clone, Entity)]
-pub struct LightSpot {
+pub struct LightSpot<'a> {
     pub origin: Vector,
     pub angles: [f32; 3],
     #[entity(name = "_light")]
     pub light: [u32; 4],
+    // TODO: hackily set to i32 to allow for -1
+    #[entity(name = "_lightHDR")]
+    pub light_hdr: [i32; 4],
+    #[entity(default)]
+    pub style: LightSpotStyle,
+    #[entity(default)]
+    pub pattern: Option<&'a str>,
     #[entity(name = "_cone")]
     pub cone: u8,
+    #[entity(name = "_inner_cone")]
+    pub inner_cone: u8,
+    #[entity(name = "_exponent")]
+    pub exponent: f32,
+    /// Max distance light is allowed to cast in inches  
+    /// Doesn't work after Source 2013  
+    /// (Probably value of zero means ignore it?)
+    #[entity(name = "_distance", default)]
+    pub distance: u32,
+    #[entity(name = "_lightscaleHDR", default)]
+    pub light_scale_hdr: Option<f32>,
+    /// Used instead of the angles pitch yaw roll
+    pub pitch: f32,
+    #[entity(name = "_constant_attn", default)]
+    pub constant: Option<f32>,
+    #[entity(name = "_linear_attn", default)]
+    pub linear: Option<f32>,
+    #[entity(name = "_quadratic_attn", default)]
+    pub quadratic: Option<f32>,
+    /// Distance at which brightness should have fallen to 50%  
+    /// Overrides linear/constant/quadratic if non-zero
+    #[entity(name = "_zero_percent_distance", default)]
+    pub zero_percent_distance: f32,
+    /// Distance at which brightness should have fallen to (1/256)%  
+    /// Overrides linear/constant/quadratic if non-zero
+    #[entity(name = "_fifty_percent_distance", default)]
+    pub fifty_percent_distance: f32,
 }
 
 #[derive(Debug, Clone, Entity)]
