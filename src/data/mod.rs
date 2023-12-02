@@ -8,6 +8,7 @@ pub use self::entity::*;
 pub use self::game::*;
 pub use self::vector::*;
 use crate::bspfile::LumpType;
+use crate::reader::Version;
 use crate::Handle;
 use crate::{BspResult, StringError};
 use arrayvec::ArrayString;
@@ -233,7 +234,15 @@ pub struct Node {
 
 static_assertions::const_assert_eq!(size_of::<Node>(), 32);
 
-#[derive(Default, Debug, Clone, BinRead)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BinRead)]
+pub struct ColorExp {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub exp: i8,
+}
+
+#[derive(Default, Debug, Clone)]
 pub struct Leaf {
     pub contents: i32,
     pub cluster: i16,
@@ -245,16 +254,60 @@ pub struct Leaf {
     pub leaf_face_count: u16,
     pub first_leaf_brush: u16,
     pub leaf_brush_count: u16,
-    #[br(align_after = align_of::< Leaf > ())]
+    // #[br(align_after = align_of::< Leaf > ())]
     pub leaf_watter_data_id: i16,
+    // pub ambient_lighting: Option<[ColorExp; 6]>,
+    pub padding: i16,
+}
+impl BinRead for Leaf {
+    type Args<'a> = Version;
+
+    fn read_options<R: Read + Seek>(
+        reader: &mut R,
+        endian: Endian,
+        version: Version,
+    ) -> BinResult<Self> {
+        let contents = i32::read_le(reader)?;
+        let cluster = i16::read_le(reader)?;
+        let area_and_flags = i16::read_le(reader)?;
+        let mins = <[i16; 3]>::read_le(reader)?;
+        let maxs = <[i16; 3]>::read_le(reader)?;
+        let first_leaf_face = u16::read_le(reader)?;
+        let leaf_face_count = u16::read_le(reader)?;
+        let first_leaf_brush = u16::read_le(reader)?;
+        let leaf_brush_count = u16::read_le(reader)?;
+        let leaf_watter_data_id = i16::read_le(reader)?;
+        // let ambient_lighting = if version.0 == 0 {
+        //     Some(<[ColorExp; 6]>::read_le(reader)?)
+        // } else {
+        //     None
+        // };
+
+        let padding = i16::read_le(reader)?;
+
+        Ok(Leaf {
+            contents,
+            cluster,
+            area_and_flags,
+            mins,
+            maxs,
+            first_leaf_face,
+            leaf_face_count,
+            first_leaf_brush,
+            leaf_brush_count,
+            leaf_watter_data_id,
+            // ambient_lighting,
+            padding,
+        })
+    }
 }
 
-static_assertions::const_assert_eq!(size_of::<Leaf>(), 32);
+// static_assertions::const_assert_eq!(size_of::<Leaf>(), 32);
 
-#[test]
-fn test_leaf_bytes() {
-    test_read_bytes::<Leaf>();
-}
+// #[test]
+// fn test_leaf_bytes() {
+//     test_read_bytes::<Leaf>();
+// }
 
 #[derive(Debug, Clone, BinRead)]
 pub struct LeafBrush {

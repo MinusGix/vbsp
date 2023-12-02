@@ -4,20 +4,25 @@ use std::borrow::Cow;
 use std::fmt::Debug;
 use std::mem::size_of;
 
+#[derive(Debug, Clone, Copy)]
+pub struct Version(pub u32);
+
 pub struct LumpReader<R> {
     inner: R,
     length: usize,
     lump: LumpType,
+    version: Version,
 }
 
 impl<'a> LumpReader<Cursor<Cow<'a, [u8]>>> {
-    pub fn new(data: Cow<'a, [u8]>, lump: LumpType) -> Self {
+    pub fn new(data: Cow<'a, [u8]>, version: u32, lump: LumpType) -> Self {
         let length = data.len();
         let reader = Cursor::new(data);
         LumpReader {
             inner: reader,
             length,
             lump,
+            version: Version(version),
         }
     }
 
@@ -55,6 +60,28 @@ impl<R: BinReaderExt + Read> LumpReader<R> {
         Ok(entries)
     }
 
+    /// Read a list of items with a fixed size and with the version
+    pub fn read_vec_ver<F, T>(&mut self, mut f: F) -> BspResult<Vec<T>>
+    where
+        F: FnMut(&mut LumpReader<R>, Version) -> BspResult<T>,
+    {
+        if self.length % size_of::<T>() != 0 {
+            return Err(BspError::InvalidLumpSize {
+                lump: self.lump,
+                element_size: size_of::<T>(),
+                lump_size: self.length,
+            });
+        }
+        let num_entries = self.length / size_of::<T>();
+        let mut entries = Vec::with_capacity(num_entries);
+
+        for _ in 0..num_entries {
+            entries.push(f(self, self.version)?);
+        }
+
+        Ok(entries)
+    }
+
     pub fn read<T: BinRead + Debug>(&mut self) -> BspResult<T>
     where
         T::Args<'static>: Default,
@@ -71,6 +98,12 @@ impl<R: BinReaderExt + Read> LumpReader<R> {
         //     result
         // );
         Ok(result)
+    }
+
+    pub fn read_args<T: BinRead + Debug>(&mut self, args: T::Args<'_>) -> BspResult<T> {
+        let result = self.inner.read_le_args(args);
+
+        Ok(result?)
     }
 
     pub fn read_visdata(&mut self) -> BspResult<VisData> {

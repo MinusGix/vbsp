@@ -200,6 +200,7 @@ impl Bsp {
         let texture_string_data = String::from_utf8(
             bsp_file
                 .get_lump(LumpType::TextureDataStringData)?
+                .1
                 .into_owned(),
         )
         .map_err(|e| BspError::String(StringError::NonUTF8(e.utf8_error())))?;
@@ -211,7 +212,7 @@ impl Bsp {
             .read_vec(|r| r.read())?;
         let leaves = bsp_file
             .lump_reader(LumpType::Leaves)?
-            .read_vec(|r| r.read())?
+            .read_vec_ver(|r, ver| r.read_args(ver))?
             .into();
         let leaf_faces = bsp_file
             .lump_reader(LumpType::LeafFaces)?
@@ -334,28 +335,40 @@ impl Bsp {
         self.textures_info.iter().map(move |m| Handle::new(self, m))
     }
 
-    /// Find a leaf for a specific position
-    pub fn leaf_at(&self, point: Vector) -> Handle<'_, Leaf> {
+    /// Find the index of the leaf for a specific position
+    pub fn leaf_index_at(&self, point: Vector) -> Option<usize> {
         let mut current = self.root_node();
 
         loop {
             let plane = current.plane();
-            let dot: f32 = point
-                .iter()
-                .zip(plane.normal.iter())
-                .map(|(a, b)| a * b)
-                .sum();
+
+            let dot = match plane.ty {
+                // plane types < 3 are like a one hot normal
+                0 => point.x - plane.dist,
+                1 => point.y - plane.dist,
+                2 => point.z - plane.dist,
+                // otherwise dot prod
+                _ => {
+                    plane.normal.x * point.x + plane.normal.y * point.y + plane.normal.z * point.z
+                        - plane.dist
+                }
+            };
 
             let [front, back] = current.children;
 
-            let next = if dot < plane.dist { back } else { front };
+            let next = if dot < 0.0 { back } else { front };
 
             if next < 0 {
-                return self.leaf((!next) as usize).unwrap();
+                return Some((!next) as usize);
             } else {
                 current = self.node(next as usize).unwrap();
             }
         }
+    }
+
+    /// Find a leaf for a specific position
+    pub fn leaf_at(&self, point: Vector) -> Handle<'_, Leaf> {
+        self.leaf(self.leaf_index_at(point).unwrap()).unwrap()
     }
 
     pub fn static_props(&self) -> impl Iterator<Item = Handle<'_, StaticPropLump>> {

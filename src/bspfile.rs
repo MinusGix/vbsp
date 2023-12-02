@@ -7,6 +7,7 @@ pub struct BspFile<'a> {
     data: &'a [u8],
     directories: Directories,
     header: Header,
+    map_revision: u32,
 }
 
 impl<'a> BspFile<'a> {
@@ -30,10 +31,13 @@ impl<'a> BspFile<'a> {
 
         let directories = cursor.read_le()?;
 
+        let map_revision = cursor.read_le()?;
+
         Ok(BspFile {
             data,
             directories,
             header,
+            map_revision,
         })
     }
 
@@ -42,22 +46,22 @@ impl<'a> BspFile<'a> {
     }
 
     pub fn lump_reader(&self, lump: LumpType) -> BspResult<LumpReader<Cursor<Cow<[u8]>>>> {
-        let data = self.get_lump(lump)?;
-        Ok(LumpReader::new(data, lump))
+        let (version, data) = self.get_lump(lump)?;
+        Ok(LumpReader::new(data, version, lump))
     }
 
-    pub fn get_lump(&self, lump: LumpType) -> BspResult<Cow<[u8]>> {
-        let lump = &self.directories[lump];
+    pub fn get_lump(&self, lump_t: LumpType) -> BspResult<(u32, Cow<[u8]>)> {
+        let lump = &self.directories[lump_t];
         let raw_data = self
             .data
             .get(lump.offset as usize..lump.offset as usize + lump.length as usize)
             .ok_or(BspError::LumpOutOfBounds(*lump))?;
 
         Ok(match lump.ident {
-            0 => Cow::Borrowed(raw_data),
+            0 => (lump.version, Cow::Borrowed(raw_data)),
             _ => {
                 let data = lzma_decompress_with_header(raw_data, lump.ident as usize)?;
-                Cow::Owned(data)
+                (lump.version, Cow::Owned(data))
             }
         })
     }
