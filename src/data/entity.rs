@@ -283,8 +283,8 @@ pub struct PropDynamic<'a> {
     pub disable_receive_shadows: bool,
     #[entity(name = "disableshadows", default)]
     pub disable_shadows: bool,
-    #[entity(name = "modelscale")]
-    pub scale: f32,
+    #[entity(name = "modelscale", default)]
+    pub scale: Option<f32>,
     pub model: &'a str,
     pub origin: Vector,
     #[entity(name = "rendercolor")]
